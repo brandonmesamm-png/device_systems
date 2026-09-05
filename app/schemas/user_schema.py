@@ -7,14 +7,13 @@ sale de la API.
 """
 
 from enum import Enum
+from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
 class RoleEnum(str, Enum):
     """
     Enum que restringe los valores posibles del campo 'role'.
-    Al heredar también de 'str', FastAPI puede mostrarlo
-    correctamente en la documentación de Swagger UI.
     """
     admin = "admin"
     support = "support"
@@ -23,8 +22,8 @@ class RoleEnum(str, Enum):
 
 class UserBase(BaseModel):
     """
-    Modelo base con los campos que comparten tanto la creación
-    como la respuesta de un usuario. Evita repetir código.
+    Modelo base con los campos que comparten la creación
+    y la respuesta de un usuario.
     """
     name: str = Field(
         ...,
@@ -47,11 +46,22 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """
-    Modelo usado en el body del endpoint POST /users.
-    Hereda todos los campos de UserBase.
-    No incluye 'id' porque lo asigna el servidor automáticamente.
+    Modelo usado en POST /users y PUT /users/{user_id}.
+    Todos los campos son obligatorios.
     """
     pass
+
+
+class UserUpdate(BaseModel):
+    """
+    Modelo usado en PATCH /users/{user_id}.
+    Todos los campos son OPCIONALES: el cliente solo envía
+    los que quiere modificar.
+    """
+    name: Optional[str] = Field(default=None, min_length=3, description="Nuevo nombre (opcional).")
+    email: Optional[EmailStr] = Field(default=None, description="Nuevo correo (opcional).")
+    role: Optional[RoleEnum] = Field(default=None, description="Nuevo rol (opcional).")
+    is_active: Optional[bool] = Field(default=None, description="Nuevo estado activo (opcional).")
 
 
 class UserResponse(UserBase):

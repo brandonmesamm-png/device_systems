@@ -2,7 +2,8 @@
 main.py
 --------
 Punto de entrada de la aplicación device_systems.
-Crea la instancia de FastAPI y registra las rutas del recurso "users".
+Crea la instancia de FastAPI, configura sus metadatos
+y registra las rutas del recurso "users".
 """
 
 from fastapi import FastAPI
@@ -10,18 +11,30 @@ from fastapi import FastAPI
 from app.routes.user_routes import router as user_router
 
 app = FastAPI(
-    title="device_systems",
-    description="API REST para la gestión de usuarios del sistema device_systems.",
-    version="1.0"
+    title="device_systems API",
+    description=(
+        "API REST para la gestión de usuarios del sistema device_systems. "
+        "Permite crear, listar, consultar, actualizar (completa y parcialmente) "
+        "y eliminar usuarios, con validaciones, manejo de errores y "
+        "documentación automática."
+    ),
+    version="2.0.0",
+    contact={
+        "name": "Equipo device_systems",
+        "email": "contacto@devicesystems.example",
+    },
 )
 
-# Registra todas las rutas definidas en user_routes.py bajo la app principal.
 app.include_router(user_router)
 
 
-@app.get("/", tags=["Root"])
+@app.get("/", tags=["Root"], summary="Estado de la API")
 def raiz():
     """
     Endpoint de bienvenida, útil para verificar que el servidor está activo.
     """
-    return {"mensaje": "Bienvenido a device_systems API. Visita /docs para ver la documentación."}
+    return {
+        "mensaje": "Bienvenido a device_systems API.",
+        "docs": "/docs",
+        "redoc": "/redoc",
+    }
