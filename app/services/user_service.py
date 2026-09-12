@@ -10,96 +10,104 @@ sin conocer los detalles de cómo se almacenan los datos.
 from typing import Optional, List
 from fastapi import HTTPException
 
-from app.data.users_db import users_db, get_next_id
+from sqlalchemy.orm import Session
+
+from app.models.user_model import User
 from app.schemas.user_schema import UserCreate, UserUpdate
 
 
-def list_users(role: Optional[str] = None, is_active: Optional[bool] = None) -> List[dict]:
+
+def list_users(db: Session, role: Optional[str] = None, is_active: Optional[bool] = None) -> List[User]:
     """
     Devuelve la lista de usuarios, aplicando filtros opcionales
     por rol y/o estado activo.
     """
-    resultado = users_db
+    query = db.query(User)
 
     if role is not None:
-        resultado = [u for u in resultado if u["role"] == role]
+        query = query.filter(User.role == role)
 
     if is_active is not None:
-        resultado = [u for u in resultado if u["is_active"] == is_active]
+        query = query.filter(User.is_active == is_active)
 
-    return resultado
+    return query.all()
 
-
-def get_user_by_id(user_id: int) -> dict:
+def get_user_by_id(db: Session, user_id: int) -> User:
     """
     Busca un usuario por su ID.
     Lanza un error 404 si no existe.
     """
-    for usuario in users_db:
-        if usuario["id"] == user_id:
-            return usuario
+    usuario = db.query(User).filter(User.id == user_id).first()
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return usuario
 
-    raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
 
-def email_exists(email: str, exclude_id: Optional[int] = None) -> bool:
-    """
-    Verifica si ya existe un usuario con ese correo.
-    'exclude_id' permite ignorar al propio usuario al actualizar
-    (para no rechazar su propio correo al hacer PUT/PATCH).
-    """
-    for usuario in users_db:
-        if usuario["email"] == email and usuario["id"] != exclude_id:
+
+
+def email_exists(db:Session, email: str, exclude_id: Optional[int] = None) -> bool:
+  
+    for usuario in db.query(User).filter(User.email == email).all():
+
+        if usuario.id != exclude_id:
+            
             return True
     return False
 
-
-def create_user(nuevo_usuario: UserCreate) -> dict:
+def create_user(db: Session, nuevo_usuario: UserCreate) -> User:
     """
     Crea un nuevo usuario, validando que el correo no esté repetido.
     """
-    if email_exists(nuevo_usuario.email):
+    if email_exists(db, nuevo_usuario.email):
         raise HTTPException(
             status_code=400,
             detail=f"Ya existe un usuario registrado con el correo {nuevo_usuario.email}."
         )
 
-    usuario_guardado = {"id": get_next_id(), **nuevo_usuario.model_dump()}
-    usuario_guardado["role"] = usuario_guardado["role"].value
-    users_db.append(usuario_guardado)
+    usuario_guardado = User(
+        name=nuevo_usuario.name,
+        email=nuevo_usuario.email,
+        role=nuevo_usuario.role.value,
+        is_active=nuevo_usuario.is_active,
+    )
+
+    db.add(usuario_guardado)
+    db.commit()
+    db.refresh(usuario_guardado)
+
     return usuario_guardado
 
-
-def replace_user(user_id: int, datos: UserCreate) -> dict:
+def replace_user(db: Session, user_id: int, datos: UserCreate) -> User:
     """
     Reemplaza completamente los datos de un usuario existente (PUT).
     Todos los campos son obligatorios.
     """
-    usuario = get_user_by_id(user_id)
+    usuario = get_user_by_id(db, user_id)
 
-    if email_exists(datos.email, exclude_id=user_id):
+    if email_exists(db, datos.email, exclude_id=user_id):
         raise HTTPException(
             status_code=400,
             detail=f"Ya existe un usuario registrado con el correo {datos.email}."
         )
 
-    usuario["name"] = datos.name
-    usuario["email"] = datos.email
-    usuario["role"] = datos.role.value
-    usuario["is_active"] = datos.is_active
+    usuario.name = datos.name
+    usuario.email = datos.email
+    usuario.role = datos.role.value
+    usuario.is_active = datos.is_active
+
+    db.commit()
+    db.refresh(usuario)
 
     return usuario
 
-
-def update_user_partial(user_id: int, datos: UserUpdate) -> dict:
+def update_user_partial(db: Session, user_id: int, datos: UserUpdate) -> User:
     """
     Actualiza parcialmente un usuario (PATCH).
     Solo modifica los campos que el cliente haya enviado.
     """
-    usuario = get_user_by_id(user_id)
+    usuario = get_user_by_id(db, user_id)
 
-    # model_dump(exclude_unset=True) devuelve SOLO los campos
-    # que el cliente realmente envió en la petición.
     campos_enviados = datos.model_dump(exclude_unset=True)
 
     if not campos_enviados:
@@ -108,24 +116,26 @@ def update_user_partial(user_id: int, datos: UserUpdate) -> dict:
             detail="Debe enviar al menos un campo para actualizar."
         )
 
-    if "email" in campos_enviados and email_exists(campos_enviados["email"], exclude_id=user_id):
+    if "email" in campos_enviados and email_exists(db, campos_enviados["email"], exclude_id=user_id):
         raise HTTPException(
             status_code=400,
             detail=f"Ya existe un usuario registrado con el correo {campos_enviados['email']}."
         )
 
     for campo, valor in campos_enviados.items():
-        # El rol llega como Enum; lo convertimos a texto plano.
         if campo == "role":
             valor = valor.value
-        usuario[campo] = valor
+        setattr(usuario, campo, valor)
+
+    db.commit()
+    db.refresh(usuario)
 
     return usuario
 
-
-def delete_user(user_id: int) -> None:
+def delete_user(db: Session, user_id: int) -> None:
     """
     Elimina un usuario existente por su ID.
     """
-    usuario = get_user_by_id(user_id)
-    users_db.remove(usuario)
+    usuario = get_user_by_id(db, user_id)
+    db.delete(usuario)
+    db.commit()
