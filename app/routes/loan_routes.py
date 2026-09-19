@@ -28,7 +28,15 @@ from app.dependencies.database_dependency import get_db
 from app.models.loan_model import Loan
 from app.services import loan_service
 
-router = APIRouter(prefix="/loans", tags=["Loans"])
+router = APIRouter(
+    prefix="/loans",
+    tags=["Loans"],
+    responses={
+        400: {"description": "Rango de fechas inválido o PATCH sin campos."},
+        404: {"description": "Usuario, dispositivo o préstamo no encontrado."},
+        409: {"description": "Dispositivo no disponible o préstamo ya devuelto."},
+    },
+)
 
 
 def set_headers(response: Response):
@@ -79,7 +87,11 @@ def listar_prestamos_con_detalle(
     "/",
     response_model=List[LoanResponse],
     summary="Listar préstamos",
-    description="Lista los préstamos en formato plano (solo IDs). Admite filtros por estado, usuario y dispositivo.",
+    description=(
+        "Lista los préstamos en formato plano (solo IDs). Admite filtros por "
+        "estado, usuario, dispositivo, correo del usuario (parcial) y tipo de "
+        "dispositivo. Los filtros se combinan con AND."
+    ),
     response_description="Lista de préstamos que cumplen con los filtros aplicados.",
 )
 def listar_prestamos(
@@ -87,6 +99,8 @@ def listar_prestamos(
     status_filter: Optional[LoanStatusEnum] = Query(default=None, alias="status", description="Filtra por estado."),
     user_id: Optional[int] = Query(default=None, gt=0, description="Filtra por ID de usuario."),
     device_id: Optional[int] = Query(default=None, gt=0, description="Filtra por ID de dispositivo."),
+    user_email: Optional[str] = Query(default=None, description="Filtra por correo del usuario (parcial)."),
+    device_type: Optional[DeviceTypeEnum] = Query(default=None, description="Filtra por tipo de dispositivo."),
     db: Session = Depends(get_db),
 ):
     set_headers(response)
@@ -95,6 +109,8 @@ def listar_prestamos(
         status_filter=status_filter.value if status_filter else None,
         user_id=user_id,
         device_id=device_id,
+        user_email=user_email,
+        device_type=device_type.value if device_type else None,
     )
 
 
@@ -151,7 +167,10 @@ def devolver_prestamo(
     "/{loan_id}",
     response_model=LoanResponse,
     summary="Actualizar préstamo (parcial)",
-    description="Actualiza campos puntuales de un préstamo, como su estado (por ejemplo, marcarlo 'overdue').",
+    description=(
+        "Actualiza campos puntuales de un préstamo, como su estado (por "
+        "ejemplo, marcarlo 'overdue'). Responde 409 si el préstamo ya fue devuelto."
+    ),
     response_description="Préstamo actualizado con los campos modificados.",
 )
 def actualizar_prestamo_parcial(

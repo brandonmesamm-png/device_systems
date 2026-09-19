@@ -18,7 +18,15 @@ from app.models.user_model import User
 from app.services import user_service
 from app.services import loan_service
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+    responses={
+        400: {"description": "Correo duplicado o PATCH sin campos."},
+        404: {"description": "Usuario no encontrado."},
+        409: {"description": "El usuario tiene préstamos sin devolver."},
+    },
+)
 
 
 def set_headers(response: Response):
@@ -108,7 +116,10 @@ def actualizar_usuario_parcial(
     "/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Eliminar usuario",
-    description="Elimina un usuario existente por su ID. No retorna contenido si la eliminación fue exitosa.",
+    description=(
+        "Elimina un usuario existente por su ID. No retorna contenido si la "
+        "eliminación fue exitosa. Responde 409 si el usuario tiene préstamos sin devolver."
+    ),
     response_description="Usuario eliminado exitosamente (sin contenido).",
 )
 def eliminar_usuario(response: Response, usuario: User = Depends(get_user_or_404), db: Session = Depends(get_db)):

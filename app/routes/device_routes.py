@@ -23,7 +23,15 @@ from app.models.device_model import Device
 from app.services import device_service
 from app.services import loan_service
 
-router = APIRouter(prefix="/devices", tags=["Devices"])
+router = APIRouter(
+    prefix="/devices",
+    tags=["Devices"],
+    responses={
+        400: {"description": "Número de serie duplicado o PATCH sin campos."},
+        404: {"description": "Dispositivo no encontrado."},
+        409: {"description": "El dispositivo tiene un préstamo activo."},
+    },
+)
 
 
 def set_headers(response: Response):
