@@ -215,7 +215,11 @@ def return_loan(db: Session, loan_id: int) -> Loan:
 def update_loan_partial(db: Session, loan_id: int, datos: LoanUpdate) -> Loan:
     """
     Actualiza parcialmente un préstamo (por ejemplo, marcarlo como 'overdue').
-    Mantiene coherente la disponibilidad del dispositivo según el estado.
+
+    Reglas de negocio:
+    - Se debe enviar al menos un campo                      -> 400
+    - Un préstamo ya devuelto no se puede modificar          -> 409
+    - Mantiene coherente la disponibilidad del dispositivo según el estado.
     """
     prestamo = get_loan_by_id(db, loan_id)
     campos = datos.model_dump(exclude_unset=True)
@@ -224,6 +228,15 @@ def update_loan_partial(db: Session, loan_id: int, datos: LoanUpdate) -> Loan:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Debe enviar al menos un campo para actualizar.",
+        )
+
+    if prestamo.status == "returned":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"El préstamo {loan_id} ya fue devuelto y no puede modificarse. "
+                f"Registre un préstamo nuevo si el equipo se vuelve a prestar."
+            ),
         )
 
     if "status" in campos and campos["status"] is not None:
