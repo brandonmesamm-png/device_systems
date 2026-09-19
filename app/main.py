@@ -7,20 +7,23 @@ Punto de entrada de la aplicación device_systems.
 from fastapi import FastAPI
 
 from app.database.connection import engine, Base
-from app.models import user_model  # necesario para que Base "conozca" el modelo
+from app.models import user_model, device_model, loan_model  # necesario para que Base "conozca" los modelos
 from app.routes.user_routes import router as user_router
+from app.routes.device_routes import router as device_router
+from app.routes.loan_routes import router as loan_router
 
-Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="device_systems API",
     description=(
-        "API REST para la gestión de usuarios del sistema device_systems. "
-        "Permite crear, listar, consultar, actualizar (completa y parcialmente) "
-        "y eliminar usuarios, con validaciones, manejo de errores y "
-        "documentación automática."
+        "API REST para la gestión de usuarios, dispositivos y préstamos del "
+        "sistema device_systems. Permite crear, listar, consultar, actualizar "
+        "(completa y parcialmente) y eliminar usuarios y dispositivos, "
+        "registrar préstamos con validaciones de disponibilidad, consultar "
+        "información relacionada mediante joins y aplicar filtros avanzados."
     ),
-    version="2.0.0",
+    version="3.0.0",
     contact={
         "name": "Equipo device_systems",
         "email": "contacto@devicesystems.example",
@@ -28,6 +31,8 @@ app = FastAPI(
 )
 
 app.include_router(user_router)
+app.include_router(device_router)
+app.include_router(loan_router)
 
 
 @app.get("/", tags=["Root"], summary="Estado de la API")

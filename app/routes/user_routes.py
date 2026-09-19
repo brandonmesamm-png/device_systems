@@ -11,10 +11,12 @@ from fastapi import APIRouter, Response, Query, Depends, status
 from sqlalchemy.orm import Session
 
 from app.schemas.user_schema import UserResponse, UserCreate, UserUpdate, RoleEnum
+from app.schemas.loan_schema import LoanResponse
 from app.dependencies.user_dependencies import get_user_or_404
 from app.dependencies.database_dependency import get_db
 from app.models.user_model import User
 from app.services import user_service
+from app.services import loan_service
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -113,3 +115,19 @@ def eliminar_usuario(response: Response, usuario: User = Depends(get_user_or_404
     set_headers(response)
     user_service.delete_user(db, usuario.id)
     return None
+
+
+@router.get(
+    "/{user_id}/loans",
+    response_model=List[LoanResponse],
+    summary="Historial de préstamos de un usuario",
+    description="Devuelve todos los préstamos asociados a un usuario específico.",
+    response_description="Lista de préstamos del usuario.",
+)
+def obtener_prestamos_de_usuario(
+    response: Response,
+    usuario: User = Depends(get_user_or_404),
+    db: Session = Depends(get_db),
+):
+    set_headers(response)
+    return loan_service.list_loans_by_user(db, usuario.id)
