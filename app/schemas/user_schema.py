@@ -8,7 +8,7 @@ sale de la API.
 
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RoleEnum(str, Enum):
@@ -28,19 +28,22 @@ class UserBase(BaseModel):
     name: str = Field(
         ...,
         min_length=3,
-        description="Nombre completo del usuario, mínimo 3 caracteres."
+        description="Nombre completo del usuario, mínimo 3 caracteres.",
+        examples=["Ana Pérez"],
     )
     email: EmailStr = Field(
         ...,
-        description="Correo electrónico del usuario, debe tener formato válido."
+        description="Correo electrónico del usuario, debe tener formato válido.",
+        examples=["ana@sena.edu.co"],
     )
     role: RoleEnum = Field(
         ...,
-        description="Rol del usuario: admin, support o user."
+        description="Rol del usuario: admin, support o user.",
+        examples=["user"],
     )
     is_active: bool = Field(
         default=True,
-        description="Indica si el usuario está activo en el sistema."
+        description="Indica si el usuario está activo en el sistema.",
     )
 
 
@@ -49,7 +52,16 @@ class UserCreate(UserBase):
     Modelo usado en POST /users y PUT /users/{user_id}.
     Todos los campos son obligatorios.
     """
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Ana Pérez",
+                "email": "ana@sena.edu.co",
+                "role": "user",
+                "is_active": True,
+            }
+        }
+    )
 
 
 class UserUpdate(BaseModel):
@@ -63,6 +75,10 @@ class UserUpdate(BaseModel):
     role: Optional[RoleEnum] = Field(default=None, description="Nuevo rol (opcional).")
     is_active: Optional[bool] = Field(default=None, description="Nuevo estado activo (opcional).")
 
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"role": "support", "is_active": False}}
+    )
+
 
 class UserResponse(UserBase):
     """
@@ -71,5 +87,4 @@ class UserResponse(UserBase):
     """
     id: int = Field(..., description="Identificador único del usuario.")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
