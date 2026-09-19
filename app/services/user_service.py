@@ -8,13 +8,14 @@ sin conocer los detalles de cómo se almacenan los datos.
 """
 
 from typing import Optional, List
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user_model import User
+from app.models.loan_model import Loan
 from app.schemas.user_schema import UserCreate, UserUpdate
-
 
 
 def list_users(db: Session, role: Optional[str] = None, is_active: Optional[bool] = None) -> List[User]:
@@ -32,6 +33,7 @@ def list_users(db: Session, role: Optional[str] = None, is_active: Optional[bool
 
     return query.all()
 
+
 def get_user_by_id(db: Session, user_id: int) -> User:
     """
     Busca un usuario por su ID.
@@ -43,17 +45,13 @@ def get_user_by_id(db: Session, user_id: int) -> User:
     return usuario
 
 
-
-
-
-def email_exists(db:Session, email: str, exclude_id: Optional[int] = None) -> bool:
-  
+def email_exists(db: Session, email: str, exclude_id: Optional[int] = None) -> bool:
+    """Indica si el correo ya está registrado en otro usuario."""
     for usuario in db.query(User).filter(User.email == email).all():
-
         if usuario.id != exclude_id:
-            
             return True
     return False
+
 
 def create_user(db: Session, nuevo_usuario: UserCreate) -> User:
     """
@@ -78,6 +76,7 @@ def create_user(db: Session, nuevo_usuario: UserCreate) -> User:
 
     return usuario_guardado
 
+
 def replace_user(db: Session, user_id: int, datos: UserCreate) -> User:
     """
     Reemplaza completamente los datos de un usuario existente (PUT).
@@ -100,6 +99,7 @@ def replace_user(db: Session, user_id: int, datos: UserCreate) -> User:
     db.refresh(usuario)
 
     return usuario
+
 
 def update_user_partial(db: Session, user_id: int, datos: UserUpdate) -> User:
     """
@@ -132,10 +132,33 @@ def update_user_partial(db: Session, user_id: int, datos: UserUpdate) -> User:
 
     return usuario
 
+
 def delete_user(db: Session, user_id: int) -> None:
     """
     Elimina un usuario existente por su ID.
+
+    Regla de negocio: no se puede eliminar un usuario que todavía tenga
+    préstamos sin devolver (active u overdue), porque su dispositivo
+    quedaría marcado como no disponible para siempre (409 Conflict).
     """
     usuario = get_user_by_id(db, user_id)
+
+    prestamo_pendiente = db.execute(
+        select(Loan).where(
+            Loan.user_id == user_id,
+            Loan.status.in_(["active", "overdue"]),
+        )
+    ).scalars().first()
+
+    if prestamo_pendiente is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"No se puede eliminar el usuario {user_id} porque tiene el "
+                f"préstamo {prestamo_pendiente.id} sin devolver. "
+                f"Registre la devolución primero."
+            ),
+        )
+
     db.delete(usuario)
     db.commit()
