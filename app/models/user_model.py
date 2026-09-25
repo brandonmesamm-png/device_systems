@@ -1,7 +1,7 @@
 """
-Módulo user_model
--------------------
-Modelo ORM que representa la tabla 'users' en la base de datos.
+Módulo user_model (actualizado para EV11)
+------------------------------------------
+Agrega el campo hashed_password para soportar autenticación JWT.
 """
 
 from datetime import datetime
@@ -22,9 +22,9 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # Relación One-to-Many: un usuario puede tener muchos préstamos.
-    # back_populates conecta este atributo con Loan.user, de modo que
-    # SQLAlchemy mantiene ambos lados sincronizados automáticamente.
+    # Campo nuevo para autenticación
+    hashed_password = Column(String, nullable=False)
+
     loans = relationship(
         "Loan",
         back_populates="user",

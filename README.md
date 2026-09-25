@@ -24,7 +24,7 @@ API REST para la gestión de **usuarios, dispositivos tecnológicos y préstamos
 7. [Endpoints](#7--endpoints)
 8. [Consultas con joins y filtros](#8--consultas-con-joins-y-filtros)
 9. [Manejo de errores y reglas de negocio](#9--manejo-de-errores-y-reglas-de-negocio)
-10. [Pruebas funcionales (12 escenarios)](#10--pruebas-funcionales-12-escenarios)
+10. [Pruebas funcionales (16 escenarios)](#10--pruebas-funcionales-16-escenarios)
 11. [Evidencias de la actividad anterior](#11--evidencias-de-la-actividad-anterior)
 12. [Reflexión final](#12--reflexión-final)
 13. [Ramas y entrega](#13--ramas-y-entrega)
@@ -245,14 +245,7 @@ alembic history
 </details>
 
 <details>
-<summary><b>4️⃣ alembic history</b></summary>
-
-![alembic history](images/alembic/04_alembic_history.png)
-
-</details>
-
-<details>
-<summary><b>5️⃣ Estructura de las tablas generadas</b></summary>
+<summary><b>4️⃣ Estructura de las tablas generadas</b></summary>
 
 ![tablas generadas](images/alembic/05_tablas.png)
 
@@ -425,24 +418,33 @@ Sobre esa base se acumulan filtros opcionales, todos combinables entre sí:
 3. Asigna `return_date`.
 4. Cambia `is_available` del dispositivo a `True`.
 
+**`PATCH /loans/{id}`**
+1. Valida que el préstamo exista.
+2. Si el préstamo ya está `returned`, responde `409 Conflict`.
+3. Aplica los cambios de estado permitidos (por ejemplo, marcar `overdue`).
+
 ---
 
-## 10. 🧪 Pruebas funcionales (12 escenarios)
+## 10. 🧪 Pruebas funcionales (16 escenarios)
 
 | # | Escenario | Evidencia |
 |---|---|---|
-| 1 | Ejecutar migraciones con Alembic | [`03_alembic_upgrade.png`](images/alembic/03_alembic_upgrade.png) |
-| 2 | Crear usuario | [`07_crear_usuario.png`](images/alembic/07_crear_usuario.png) |
-| 3 | Crear dispositivo | [`08_crear_dispositivo.png`](images/alembic/08_crear_dispositivo.png) |
-| 4 | Crear préstamo | [`09_crear_prestamo.png`](images/alembic/09_crear_prestamo.png) |
-| 5 | Prestar un dispositivo no disponible (409) | [`10_dispositivo_no_disponible.png`](images/alembic/10_dispositivo_no_disponible.png) |
-| 6 | Listar préstamos con usuario y dispositivo (join) | [`11_join_details.png`](images/alembic/11_join_details.png) |
-| 7 | Filtrar préstamos por estado | [`12_filtro_status.png`](images/alembic/12_filtro_status.png) |
-| 8 | Filtrar préstamos por tipo de dispositivo | [`13_filtro_device_type.png`](images/alembic/13_filtro_device_type.png) |
-| 9 | Consultar préstamos de un usuario | [`14_prestamos_usuario.png`](images/alembic/14_prestamos_usuario.png) |
-| 10 | Devolver un dispositivo | [`15_devolucion.png`](images/alembic/15_devolucion.png) |
-| 11 | Validar que el dispositivo vuelve a estar disponible | [`16_dispositivo_disponible.png`](images/alembic/16_dispositivo_disponible.png) |
-| 12 | Consultar historial de préstamos del dispositivo | [`17_historial_dispositivo.png`](images/alembic/17_historial_dispositivo.png) |
+| 1 | Inicializar Alembic | [`01_alembic_init.png`](images/alembic/01_alembic_init.png) |
+| 2 | Generar migración con autogenerate | [`02_alembic_revision.png`](images/alembic/02_alembic_revision.png) |
+| 3 | Ejecutar migraciones con Alembic | [`03_alembic_upgrade.png`](images/alembic/03_alembic_upgrade.png) |
+| 4 | Verificar tablas generadas en la base de datos | [`05_tablas.png`](images/alembic/05_tablas.png) |
+| 5 | Vista general de Swagger UI | [`06_swagger_general.png`](images/alembic/06_swagger_general.png) |
+| 6 | Crear usuario | [`07_crear_usuario.png`](images/alembic/07_crear_usuario.png) |
+| 7 | Crear dispositivo | [`08_crear_dispositivo.png`](images/alembic/08_crear_dispositivo.png) |
+| 8 | Crear préstamo | [`09_crear_prestamo.png`](images/alembic/09_crear_prestamo.png) |
+| 9 | Prestar un dispositivo no disponible (409) | [`10_dispositivo_no_disponible.png`](images/alembic/10_dispositivo_no_disponible.png) |
+| 10 | Listar préstamos con usuario y dispositivo (join) | [`11_join_details.png`](images/alembic/11_join_details.png) |
+| 11 | Filtrar préstamos por estado | [`12_filtro_status.png`](images/alembic/12_filtro_status.png) |
+| 12 | Filtrar préstamos por tipo de dispositivo | [`13_filtro_device_type.png`](images/alembic/13_filtro_device_type.png) |
+| 13 | Consultar préstamos de un usuario | [`14_prestamos_usuario.png`](images/alembic/14_prestamos_usuario.png) |
+| 14 | Devolver un préstamo | [`15_devolucion.png`](images/alembic/15_devolucion.png) |
+| 15 | Consultar historial de préstamos del dispositivo | [`17_historial_dispositivo.png`](images/alembic/17_historial_dispositivo.png) |
+| 16 | Modificar el estado de un préstamo ya devuelto (409) | [`16_error_patch_prestamo_devuelto.png`](images/alembic/16_error_patch_prestamo_devuelto.png) |
 
 ### Swagger UI
 
@@ -484,21 +486,20 @@ Sobre esa base se acumulan filtros opcionales, todos combinables entre sí:
 
 </details>
 
-### Devolución
+### Devolución y reglas de negocio
 
 <details open>
-<summary><b>Devolver · verificar disponibilidad · historial</b></summary>
+<summary><b>Devolver un préstamo y consultar historial del dispositivo</b></summary>
 
 ![Devolución](images/alembic/15_devolucion.png)
-![Dispositivo disponible](images/alembic/16_dispositivo_disponible.png)
 ![Historial del dispositivo](images/alembic/17_historial_dispositivo.png)
 
 </details>
 
 <details>
-<summary><b>Error al devolver dos veces el mismo préstamo (409)</b></summary>
+<summary><b>Error al modificar un préstamo ya devuelto (409)</b></summary>
 
-![Doble devolución](images/alembic/18_error_doble_devolucion.png)
+![Error patch préstamo devuelto](images/alembic/16_error_patch_prestamo_devuelto.png)
 
 </details>
 
@@ -511,7 +512,7 @@ Se conservan las pruebas del CRUD de `/users` de la versión con SQLAlchemy.
 <details>
 <summary><b>Swagger UI y ReDoc (versión anterior)</b></summary>
 
-![Swagger UI](images/imagesEndpointsActualizacion1.1/swagger_actualizado.png)
+![Swagger UI](images/imagesEndpoint/swagger1.png)
 ![ReDoc](images/imagesEndpoint/swagger2.png)
 
 </details>
@@ -537,13 +538,6 @@ Se conservan las pruebas del CRUD de `/users` de la versión con SQLAlchemy.
 ![PUT error](images/imagesEndpoint/put_error.png)
 ![PATCH error](images/imagesEndpoint/patch_error.png)
 ![DELETE error](images/imagesEndpoint/delete_error.png)
-
-</details>
-
-<details>
-<summary><b>Base de datos de la versión anterior</b></summary>
-
-![Tabla users](images/imagesEndpointsActualizacion1.1/basedatossql.png)
 
 </details>
 
