@@ -600,8 +600,16 @@ En conjunto, EV11 mostró que la seguridad no es una capa que se agrega al final
 ## 15. 🎥 Video de socialización
  
 > Video explicativo (máx. 15 minutos) cubriendo: funcionalidades construidas, cambios respecto a la versión anterior, cómo se protegieron las rutas, cómo se implementó el hash de contraseñas, cómo funciona el login con OAuth2 y JWT, cómo se aplicó middleware y CORS, cómo se configuró el rate limiting, y qué se aprendió sobre seguridad en APIs.
+
+
+
+
+
+
+
+
  
-📺 **Enlace al video:** [_video de youtube_](https://youtu.be/GVnUmSSF9rk)
+📺 **Enlace al video:** [_video de youtube_](https://youtu.be/WwcAZhceExg)
  
 
 
