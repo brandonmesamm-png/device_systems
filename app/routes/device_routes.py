@@ -3,6 +3,11 @@ Módulo device_routes
 -----------------------
 Define los endpoints del recurso "devices": GET, POST, PUT, PATCH y DELETE,
 incluyendo filtros por tipo, disponibilidad, marca y búsqueda libre.
+
+Protección de rutas (Fase 8):
+- POST /devices/         -> admin o support
+- PUT  /devices/{id}     -> admin o support
+- DELETE /devices/{id}   -> solo admin
 """
 
 from typing import List, Optional
@@ -19,7 +24,9 @@ from app.schemas.device_schema import (
 from app.schemas.loan_schema import LoanResponse
 from app.dependencies.device_dependencies import get_device_or_404
 from app.dependencies.database_dependency import get_db
+from app.dependencies.auth_dependency import require_admin, require_admin_or_support
 from app.models.device_model import Device
+from app.models.user_model import User
 from app.services import device_service
 from app.services import loan_service
 
@@ -28,6 +35,8 @@ router = APIRouter(
     tags=["Devices"],
     responses={
         400: {"description": "Número de serie duplicado o PATCH sin campos."},
+        401: {"description": "No autenticado."},
+        403: {"description": "El rol del usuario no tiene permisos para esta acción."},
         404: {"description": "Dispositivo no encontrado."},
         409: {"description": "El dispositivo tiene un préstamo activo."},
     },
@@ -83,10 +92,18 @@ def obtener_dispositivo(response: Response, dispositivo: Device = Depends(get_de
     response_model=DeviceResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear dispositivo",
-    description="Registra un nuevo dispositivo. Valida que el número de serie no esté duplicado.",
+    description=(
+        "Registra un nuevo dispositivo. Valida que el número de serie no esté "
+        "duplicado. Requiere rol admin o support."
+    ),
     response_description="Dispositivo creado exitosamente.",
 )
-def crear_dispositivo(nuevo_dispositivo: DeviceCreate, response: Response, db: Session = Depends(get_db)):
+def crear_dispositivo(
+    nuevo_dispositivo: DeviceCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+    _usuario_actual: User = Depends(require_admin_or_support),
+):
     set_headers(response)
     return device_service.create_device(db, nuevo_dispositivo)
 
@@ -95,7 +112,10 @@ def crear_dispositivo(nuevo_dispositivo: DeviceCreate, response: Response, db: S
     "/{device_id}",
     response_model=DeviceResponse,
     summary="Actualizar dispositivo (completo)",
-    description="Reemplaza completamente los datos de un dispositivo existente.",
+    description=(
+        "Reemplaza completamente los datos de un dispositivo existente. "
+        "Requiere rol admin o support."
+    ),
     response_description="Dispositivo actualizado con los nuevos datos.",
 )
 def actualizar_dispositivo(
@@ -103,6 +123,7 @@ def actualizar_dispositivo(
     response: Response,
     dispositivo: Device = Depends(get_device_or_404),
     db: Session = Depends(get_db),
+    _usuario_actual: User = Depends(require_admin_or_support),
 ):
     set_headers(response)
     return device_service.replace_device(db, dispositivo.id, datos)
@@ -112,7 +133,7 @@ def actualizar_dispositivo(
     "/{device_id}",
     response_model=DeviceResponse,
     summary="Actualizar dispositivo (parcial)",
-    description="Actualiza solo los campos enviados por el cliente.",
+    description="Actualiza solo los campos enviados por el cliente. Requiere rol admin o support.",
     response_description="Dispositivo actualizado con los campos modificados.",
 )
 def actualizar_dispositivo_parcial(
@@ -120,6 +141,7 @@ def actualizar_dispositivo_parcial(
     response: Response,
     dispositivo: Device = Depends(get_device_or_404),
     db: Session = Depends(get_db),
+    _usuario_actual: User = Depends(require_admin_or_support),
 ):
     set_headers(response)
     return device_service.update_device_partial(db, dispositivo.id, datos)
@@ -131,7 +153,8 @@ def actualizar_dispositivo_parcial(
     summary="Eliminar dispositivo",
     description=(
         "Elimina un dispositivo existente por su ID. "
-        "Responde 409 si el dispositivo tiene un préstamo activo."
+        "Responde 409 si el dispositivo tiene un préstamo activo. "
+        "Requiere rol admin."
     ),
     response_description="Dispositivo eliminado exitosamente (sin contenido).",
 )
@@ -139,6 +162,7 @@ def eliminar_dispositivo(
     response: Response,
     dispositivo: Device = Depends(get_device_or_404),
     db: Session = Depends(get_db),
+    _usuario_actual: User = Depends(require_admin),
 ):
     set_headers(response)
     device_service.delete_device(db, dispositivo.id)

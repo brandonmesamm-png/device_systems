@@ -1,10 +1,13 @@
 """
 Módulo auth_routes (con rate limiting)
 ----------------------------------------
-Reemplaza auth_routes.py — incluye límites de peticiones con slowapi.
+Incluye límites de peticiones con slowapi. El login usa
+OAuth2PasswordRequestForm para que el botón "Authorize" de Swagger
+funcione correctamente (flujo estándar OAuth2 password).
 """
 
 from fastapi import APIRouter, Depends, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -36,11 +39,23 @@ def register(request: Request, datos: UserRegister, db: Session = Depends(get_db
     "/login",
     response_model=Token,
     summary="Iniciar sesión",
-    description="Autentica al usuario y retorna un token JWT Bearer. Límite: 5 por minuto.",
+    description=(
+        "Autentica al usuario y retorna un token JWT Bearer. "
+        "Usa el formulario estándar OAuth2 (username=correo, password). "
+        "Límite: 5 por minuto."
+    ),
 )
 @limiter.limit("5/minute")
-def login(request: Request, datos: UserLogin, db: Session = Depends(get_db)):
-    return auth_service.login_usuario(db, datos)
+def login(
+    request: Request,
+    # OAuth2PasswordRequestForm es lo que usa el botón "Authorize" de
+    # Swagger: envía 'username' (aquí el correo) y 'password' como
+    # application/x-www-form-urlencoded, NO como JSON.
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    credenciales = UserLogin(email=form_data.username, password=form_data.password)
+    return auth_service.login_usuario(db, credenciales)
 
 
 @router.get(
